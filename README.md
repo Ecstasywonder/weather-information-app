@@ -36,8 +36,7 @@ Setup Instructions
 
 Clone the Repository:
 
-git clone git clone https://github.com/weather-information-app/weather-information-app.git
-cd weather-information-app
+git clone git clone https://github.com/Ecstasywonder/weather-information-app.git
 
 Add Dependencies:
 
