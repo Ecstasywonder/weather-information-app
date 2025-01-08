@@ -1,0 +1,248 @@
+package com.weather.app;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Scanner;
+import org.json.JSONObject;
+
+/**
+ * WeatherApp is a Java Swing application that fetches real-time weather data from the Weatherstack API.
+ * It displays current weather information, forecasts, and maintains a history of user searches.
+ * The app also includes dynamic backgrounds and unit conversion.
+ * @author Chinwendu Onyeani
+ */
+public class WeatherApp {
+
+    private JFrame frame;
+    private JTextField cityInput;
+    private JLabel weatherLabel, tempLabel, humidityLabel, windLabel, iconLabel;
+    private JTextArea historyArea;
+    private JPanel backgroundPanel;
+    private boolean isCelsius = true;
+    private final HashMap<String, JSONObject> cache = new HashMap<>();
+    private final String API_KEY = "cea8279cb3a58e71e795f7bb0f40bafd"; // Weatherstack API key
+
+    /**
+     * Main method to launch the WeatherApp.
+     * @param args command-line arguments (not used).
+     */
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(WeatherApp::new);
+    }
+
+    /**
+     * Constructor to initialize the GUI.
+     */
+    public WeatherApp() {
+        createGUI();
+    }
+
+    /**
+     * Creates the graphical user interface for the WeatherApp.
+     */
+    private void createGUI() {
+        frame = new JFrame("Weather Information App");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(700, 600);
+
+        backgroundPanel = new JPanel(new BorderLayout());
+        frame.add(backgroundPanel);
+
+        // Input Panel
+        JPanel inputPanel = new JPanel(new FlowLayout());
+        JLabel cityLabel = new JLabel("Enter City:");
+        cityInput = new JTextField(15);
+        JButton searchButton = new JButton("Get Weather");
+        searchButton.addActionListener(this::fetchWeatherData);
+        JButton forecastButton = new JButton("Get Forecast");
+        forecastButton.addActionListener(this::fetchForecastData);
+        JCheckBox unitSwitch = new JCheckBox("Show in °F");
+        unitSwitch.addActionListener(e -> isCelsius = !unitSwitch.isSelected());
+        inputPanel.add(cityLabel);
+        inputPanel.add(cityInput);
+        inputPanel.add(searchButton);
+        inputPanel.add(forecastButton);
+        inputPanel.add(unitSwitch);
+
+        // Weather Display Panel
+        JPanel displayPanel = new JPanel(new GridLayout(5, 1));
+        weatherLabel = new JLabel("Weather: ", JLabel.CENTER);
+        tempLabel = new JLabel("Temperature: ", JLabel.CENTER);
+        humidityLabel = new JLabel("Humidity: ", JLabel.CENTER);
+        windLabel = new JLabel("Wind Speed: ", JLabel.CENTER);
+        iconLabel = new JLabel("", JLabel.CENTER);
+        displayPanel.add(weatherLabel);
+        displayPanel.add(tempLabel);
+        displayPanel.add(humidityLabel);
+        displayPanel.add(windLabel);
+        displayPanel.add(iconLabel);
+
+        // History Panel
+        JPanel historyPanel = new JPanel(new BorderLayout());
+        JLabel historyLabel = new JLabel("Search History:");
+        historyArea = new JTextArea(8, 40);
+        historyArea.setEditable(false);
+        JScrollPane historyScroll = new JScrollPane(historyArea);
+        historyPanel.add(historyLabel, BorderLayout.NORTH);
+        historyPanel.add(historyScroll, BorderLayout.CENTER);
+
+        // Add Panels
+        backgroundPanel.add(inputPanel, BorderLayout.NORTH);
+        backgroundPanel.add(displayPanel, BorderLayout.CENTER);
+        backgroundPanel.add(historyPanel, BorderLayout.SOUTH);
+
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
+    /**
+     * Fetches current weather data for the specified city.
+     * @param e ActionEvent triggered by the "Get Weather" button.
+     */
+    private void fetchWeatherData(ActionEvent e) {
+        String city = cityInput.getText().trim();
+        if (city.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "City name cannot be empty!", "Input Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            JSONObject weatherData;
+            if (cache.containsKey(city)) {
+                weatherData = cache.get(city); // Retrieve from cache
+            } else {
+                String urlString = "http://api.weatherstack.com/current?access_key=" + API_KEY + "&query=" + city;
+                weatherData = fetchDataFromAPI(urlString);
+                if (weatherData == null) return;
+                cache.put(city, weatherData); // Cache response
+            }
+
+            parseWeatherData(weatherData, city);
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(frame, "Error fetching weather data!", "Network Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Fetches weather forecast data for the specified city.
+     * @param e ActionEvent triggered by the "Get Forecast" button.
+     */
+    private void fetchForecastData(ActionEvent e) {
+        String city = cityInput.getText().trim();
+        if (city.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "City name cannot be empty!", "Input Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            String urlString = "http://api.weatherstack.com/forecast?access_key=" + API_KEY + "&query=" + city;
+            JSONObject forecastData = fetchDataFromAPI(urlString);
+            if (forecastData == null) return;
+
+            displayForecast(forecastData);
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(frame, "Error fetching forecast data!", "Network Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Fetches data from the Weatherstack API.
+     * @param urlString API endpoint URL.
+     * @return JSONObject containing API response data.
+     * @throws Exception if an error occurs during the API call.
+     */
+    private JSONObject fetchDataFromAPI(String urlString) throws Exception {
+        @SuppressWarnings("deprecation")
+		HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
+        conn.setRequestMethod("GET");
+
+        if (conn.getResponseCode() != 200) {
+            JOptionPane.showMessageDialog(frame, "Invalid city name or API error!", "API Error", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+
+        Scanner scanner = new Scanner(conn.getInputStream());
+        StringBuilder jsonResponse = new StringBuilder();
+        while (scanner.hasNext()) {
+            jsonResponse.append(scanner.nextLine());
+        }
+        scanner.close();
+
+        return new JSONObject(jsonResponse.toString());
+    }
+
+    /**
+     * Parses and displays current weather data.
+     * @param weatherData JSONObject containing current weather data.
+     * @param city The city for which the weather data was fetched.
+     */
+    private void parseWeatherData(JSONObject weatherData, String city) {
+        JSONObject current = weatherData.getJSONObject("current");
+        String weather = current.getJSONArray("weather_descriptions").optString(0, "Unknown");
+        double temp = current.getDouble("temperature");
+        int humidity = current.getInt("humidity");
+        double windSpeed = current.getDouble("wind_speed");
+
+        weatherLabel.setText("Weather: " + weather);
+        tempLabel.setText("Temperature: " + (isCelsius ? temp : temp * 9 / 5 + 32) + (isCelsius ? "°C" : "°F"));
+        humidityLabel.setText("Humidity: " + humidity + "%");
+        windLabel.setText("Wind Speed: " + windSpeed + " km/h");
+
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String historyEntry = timestamp + " - " + city + ": " + weather + ", " + temp + (isCelsius ? "°C" : "°F");
+        historyArea.append(historyEntry + "\n");
+        updateBackground(weather);
+    }
+
+    /**
+     * Displays the forecast data.
+     * @param forecastData JSONObject containing forecast data.
+     */
+    private void displayForecast(JSONObject forecastData) {
+        StringBuilder forecastBuilder = new StringBuilder("Forecast:");
+        JSONObject forecast = forecastData.getJSONObject("forecast");
+
+        forecast.keySet().stream().filter(date -> LocalDateTime.now().isBefore(LocalDateTime.parse(date + "T23:59:59")))
+            .forEach(date -> {
+                JSONObject day = forecast.getJSONObject(date);
+                double avgTemp = day.has("avgtemp") ? day.getDouble("avgtemp") : 0.0;
+                String condition = day.has("weather_descriptions") 
+                    ? day.getJSONArray("weather_descriptions").optString(0, "Unknown") 
+                    : "Unknown";
+                forecastBuilder.append(String.format("\n%s: %.1f°C, %s", date, avgTemp, condition));
+            });
+
+        JOptionPane.showMessageDialog(frame, forecastBuilder.toString(), "Forecast", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * Updates the background color based on the weather condition.
+     * @param weather The current weather condition.
+     */
+    private void updateBackground(String weather) {
+        if (weather == null || weather.isEmpty()) {
+            backgroundPanel.setBackground(Color.LIGHT_GRAY);
+            return;
+        }
+
+        if (weather.toLowerCase().contains("clear")) {
+            backgroundPanel.setBackground(Color.ORANGE);
+        } else if (weather.toLowerCase().contains("cloud")) {
+            backgroundPanel.setBackground(Color.GRAY);
+        } else if (weather.toLowerCase().contains("rain")) {
+            backgroundPanel.setBackground(Color.BLUE);
+        } else {
+            backgroundPanel.setBackground(Color.LIGHT_GRAY);
+        }
+    }
+}
