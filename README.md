@@ -1,3 +1,28 @@
+<!-- PORTFOLIO_STAR_V1 -->
+# Weather Information App — Java API Integration
+
+**Software engineering case study — STAR**
+
+### Situation
+End users need a simple desktop interface for looking up city conditions and handling incomplete or invalid remote responses.
+
+### Task
+Build a Java Swing application that fetches weather information and presents usable diagnostics and history.
+
+### Action
+Developed a desktop user interface, Weatherstack API request handling, weather condition display, temperature/wind conversions, timestamped search history and input/error handling.
+
+### Result
+The repository documents a desktop weather information implementation with a known limitation: some forecast functionality requires Weatherstack plan access. No commercial or production usage is claimed.
+
+**Explore the implementation:** [Application source](weather-information-app)
+
+> Portfolio disclosure: This section reports implementation scope and documented evidence, not unverified production or customer outcomes.
+
+---
+
+## Full project documentation
+
 # weather-information-app
 The Weather Information App is a Java Swing-based application that provides real-time weather updates for a specified city. It uses the Weatherstack API to fetch current weather information and forecasts. The app includes features such as unit conversion, dynamic backgrounds based on weather conditions, and a search history with timestamps.
 Features
